@@ -1,0 +1,11 @@
+#!/bin/bash
+
+rm Histograms_2016_combine.root
+rm Histograms_2017_combine.root
+rm Histograms_2018_combine.root
+rm Histograms_FullRun2_combine.root
+
+hadd Histograms_2016_combine.root Histograms_2016_elec.root Histograms_2016_muon.root
+hadd Histograms_2017_combine.root Histograms_2017_elec.root Histograms_2017_muon.root
+hadd Histograms_2018_combine.root Histograms_2018_elec.root Histograms_2018_muon.root
+hadd Histograms_FullRun2_combine.root Histograms_2016_combine.root Histograms_2017_combine.root Histograms_2018_combine.root
