@@ -115,7 +115,7 @@ int main(int argc, char* argv[]){
 
 
   // define directory
-  TString dir = "/nfs/dust/cms/user/schwarzd/MTopJet_Run2/PostSel/"+channel+"/";
+  TString dir = "/nfs/dust/cms/user/paaschal/MTopJet_Run2/PostSel/"+channel+"/";
   TString prefix = "/uhh2.AnalysisModuleRunner.";
 
   // fill data
@@ -148,6 +148,9 @@ int main(int argc, char* argv[]){
   fill_matrix((TTree *) mc_matrix_File->Get("AnalysisTree"), "pudown", "sf_pu_down");
   fill_matrix((TTree *) mc_matrix_File->Get("AnalysisTree"), "btagup", "sf_btag_up");
   fill_matrix((TTree *) mc_matrix_File->Get("AnalysisTree"), "btagdown", "sf_btag_down");
+  fill_matrix((TTree *) mc_matrix_File->Get("AnalysisTree"), "prefireup", "sf_prefire_up");
+  fill_matrix((TTree *) mc_matrix_File->Get("AnalysisTree"), "prefiredown", "sf_prefire_down");
+ 
 
   // fill shape SYS
   vector<TString> sys_name;
