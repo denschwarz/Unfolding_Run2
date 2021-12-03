@@ -66,6 +66,18 @@ def main():
         ['data', 'elec_muonJMS', '2016'],
         ['data', 'elec_muonJMS', '2017'],
         ['data', 'elec_muonJMS', '2018'],
+        ['pseudo1715', 'muon_elecJMS', '2016'],
+        ['pseudo1715', 'muon_elecJMS', '2017'],
+        ['pseudo1715', 'muon_elecJMS', '2018'],
+        ['pseudo1735', 'muon_elecJMS', '2016'],
+        ['pseudo1735', 'muon_elecJMS', '2017'],
+        ['pseudo1735', 'muon_elecJMS', '2018'],
+        ['pseudo1715', 'elec_muonJMS', '2016'],
+        ['pseudo1715', 'elec_muonJMS', '2017'],
+        ['pseudo1715', 'elec_muonJMS', '2018'],
+        ['pseudo1735', 'elec_muonJMS', '2016'],
+        ['pseudo1735', 'elec_muonJMS', '2017'],
+        ['pseudo1735', 'elec_muonJMS', '2018'],
     ]
     result = pool_muon.map_async(submit_job, job_list)
     pool_muon.close()
