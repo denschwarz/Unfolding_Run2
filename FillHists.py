@@ -10,7 +10,7 @@ def main():
     global n_jobs                                                       # Needed to modify global copy of n_jobs
     pool_muon = multiprocessing.Pool(processes = n_jobs)
     job_list = [
-        # ['muon','FullRun2'],
+        #['muon','FullRun2'],
         ['muon','2016'],
         ['muon','2017'],
         ['muon','2018'],
