@@ -30,6 +30,7 @@ TH1* GetDeltaFromBinHists(vector<TF1*> fits, TH1* dummy, double xmin, double xma
 vector<TGraphErrors*> GetBinHistsForFSR(vector<TH1*>, int);
 vector<TF1*> FitBinHistsForFSR(vector<TGraphErrors*> hists);
 TH1* GetDeltaFromBinHistsFSR(vector<TF1*> fits, TH1* dummy, double central, double xmin, double xmax, int power);
+TH1* GetFSRshift(vector<TF1*> fits, TH1* dummy, double central, int power);
 
 int main(int argc, char* argv[])
 {
@@ -76,6 +77,9 @@ int main(int argc, char* argv[])
     cout << "[ERROR] Channel not known, select muon, elec or combine!" << endl;
     return 0;
   }
+
+  bool JMScrosschek = false;
+  if(channel.Contains("JMS")) JMScrosschek = true;
 
   if(strcmp(argv[1], "data") == 0){
     data = true;
@@ -449,6 +453,8 @@ int main(int argc, char* argv[])
   vector<TString> eltr_name = {"eltrup", "eltrdown"};
   vector<TString> elreco_name = {"elrecoup", "elrecodown"};
   vector<TString> pu_name = {"puup", "pudown"};
+  vector<TString> prefire_name = {"prefireup", "prefiredown"};
+
   vector< vector<TString> > sys_name;
   vector<TString> sys_rel_name;
   sys_name.push_back(jec_name);
@@ -457,12 +463,14 @@ int main(int argc, char* argv[])
   sys_name.push_back(jms_name);
   sys_name.push_back(btag_name);
   sys_name.push_back(pu_name);
+  sys_name.push_back(prefire_name);
   sys_rel_name.push_back("jec");
   sys_rel_name.push_back("jer");
   sys_rel_name.push_back("cor");
   sys_rel_name.push_back("jms");
   sys_rel_name.push_back("b-tagging");
   sys_rel_name.push_back("pile-up");
+  sys_rel_name.push_back("prefire");
   if(channel == "muon" || channel == "combine"){
     sys_name.push_back(muid_name);
     sys_name.push_back(mutr_name);
@@ -476,6 +484,18 @@ int main(int argc, char* argv[])
     sys_rel_name.push_back("ElID");
     sys_rel_name.push_back("ElTrigger");
     sys_rel_name.push_back("ElReco");
+  }
+  if(JMScrosschek){
+    sys_name.clear();
+    sys_name.push_back(jec_name);
+    sys_name.push_back(jer_name);
+    sys_name.push_back(cor_name);
+    sys_name.push_back(jms_name);
+    sys_rel_name.clear();
+    sys_rel_name.push_back("jec");
+    sys_rel_name.push_back("jer");
+    sys_rel_name.push_back("cor");
+    sys_rel_name.push_back("jms");
   }
   vector< vector<TH2*> > sys_matrix;
   for(unsigned int i=0; i<sys_name.size(); i++){
@@ -613,20 +633,21 @@ int main(int argc, char* argv[])
 
 
   if(year == "2016"){
-    fsrcentral = 1.01824;
-    fsruncert_max = fsrcentral + 0.069511;
-    fsruncert_min = fsrcentral - 0.065069;
+    fsrcentral = 1.04448;
+    fsruncert_max = fsrcentral + 0.0607898;
+    fsruncert_min = fsrcentral - 0.0574464;
   }
   else if(year == "2017"){
-    fsrcentral = 3.07281;
-    fsruncert_max = fsrcentral + 0.195125;
-    fsruncert_min = fsrcentral - 0.201585;
+    fsrcentral = 3.04987;
+    fsruncert_max = fsrcentral + 0.156177;
+    fsruncert_min = fsrcentral - 0.15942;
   }
   else if(year == "2018"){
-    fsrcentral = 3.07281;
-    fsruncert_max = fsrcentral + 0.195125;
-    fsruncert_min = fsrcentral - 0.201585;
+    fsrcentral = 3.04987;
+    fsruncert_max = fsrcentral + 0.156177;
+    fsruncert_min = fsrcentral - 0.15942;
   }
+
 
   if(nscan != 0){
     if(do_lcurve) cout << "    -- YOU SELECTED " << "L-curve scan" << endl;
@@ -638,41 +659,45 @@ int main(int argc, char* argv[])
 
   bool do_model = true;
   bool do_all_pdf = false;
-  bool do_genvar = false;
   bool do_masses_only = false;
-  bool do_chi2modelsys = false;
   bool use_significance = false;
   bool do_newmtopuncert = true;
   bool do_newfsruncert = true;
   bool do_average_uncert = true;
+  bool make_fsrshift = true;
 
 
   if(pseudo1695 || pseudo1715 || pseudo1735 || pseudo1755){
     do_model = true;
     do_masses_only = true;
     do_all_pdf = false;
-    do_genvar = false;
   }
   else if(same){
     do_model = false;
     do_masses_only = true;
     do_all_pdf = false;
-    do_genvar = false;
     do_newmtopuncert = false;
     do_newfsruncert = false;
     nscan = 1;
+  }
+
+  if(JMScrosschek){
+    do_model = true;
+    do_all_pdf = false;
+    do_masses_only = false;
+    use_significance = false;
+    do_average_uncert = true;
   }
 
   std::ofstream out_set(directory+"/Settings.txt");
   if(!do_model) cout << "    -- MODEL VARIATIONS ARE NOT UNFOLDED!" << endl  << endl;
   if(do_masses_only) cout << "    -- ONLY MASSES CONSIDERED AS MODEL VARIATIONS!" << endl  << endl;
   if(!do_all_pdf) cout << "    -- ONLY ONE PDF VARIATION IS UNFOLDED!" << endl  << endl;
-  if(!do_genvar) cout << "    -- GENERATOR SMEARINGS ARE NOT UNFOLDED!" << endl  << endl;
-  if(!do_chi2modelsys) cout << "    -- OLD MODEL SYS UNCERTAINTY METHOD IS USED!" << endl  << endl;
   if(use_significance) cout << "    -- SIGNIFICANCE IS USED TO SELEC MODEL VARIATION!" << endl  << endl;
   if(!use_significance)cout << "    -- TOTAL SHIFT IS USED TO SELEC MODEL VARIATION!" << endl  << endl;
   if(do_newmtopuncert)cout << "    -- CHOICE OF M_T UNCERT IS CALCULATED WITH NEW METHOD!" << endl  << endl;
   if(do_newfsruncert)cout << "    -- FSR UNCERT IS CALCULATED WITH NEW METHOD!" << endl  << endl;
+  if(make_fsrshift)cout << "    -- FSR SHIFT IS APPLIED TO UNFOLDED DATA!" << endl  << endl;
   if(do_average_uncert)cout << "    -- SIZE OF UNCERTAINTY IS AVERAGE!" << endl  << endl;
   auto coutbuf_set = std::cout.rdbuf(out_set.rdbuf());
   std::cout.rdbuf(coutbuf_set);
@@ -725,6 +750,7 @@ int main(int argc, char* argv[])
   vector<TH1*> MTOP_OUTPUT;
   TH1* DELTA_MT;
   TH1* DELTA_FSR;
+  TH1* FSRSHIFT, *FSRSHIFT_REL;
 
 
   TH2 *CovTheo;
@@ -841,7 +867,6 @@ int main(int argc, char* argv[])
       }
     }
 
-
     // now unfold every model variation, get difference to truth and fill cov matrices
     // since tau depends only on the Migration Matrix, one has to find taus only in the first unfolding
     // for every following unfolding the same tau is used
@@ -864,10 +889,10 @@ int main(int argc, char* argv[])
           MODEL_OUTPUT[i].push_back(output);
           TH1* delta = GetModelDelta(output, model_truth[i][j]);
           TH2* cov = CreateCovFromDelta(delta, CovInputStat);
-          if(!do_chi2modelsys) MODEL_DELTA[i].push_back(delta);
+          MODEL_DELTA[i].push_back(delta);
           TH1* bias = unfold_model->GetBiasDistribution();
           MODEL_BIAS[i].push_back(bias);
-          if(!do_chi2modelsys) CovModel[i].push_back(cov);
+          CovModel[i].push_back(cov);
           TH2* statc = unfold_model->GetInputStatCov(); // for chi2sys only
           CovModelStat[i].push_back(statc);
 
@@ -879,84 +904,48 @@ int main(int argc, char* argv[])
     }
 
     /*
-    ██████ ██   ██ ██ ██████      ███    ███  ██████  ██████  ███████ ██          ███████ ██    ██ ███████
-    ██      ██   ██ ██      ██     ████  ████ ██    ██ ██   ██ ██      ██          ██       ██  ██  ██
-    ██      ███████ ██  █████      ██ ████ ██ ██    ██ ██   ██ █████   ██          ███████   ████   ███████
-    ██      ██   ██ ██ ██          ██  ██  ██ ██    ██ ██   ██ ██      ██               ██    ██         ██
-    ██████ ██   ██ ██ ███████     ██      ██  ██████  ██████  ███████ ███████     ███████    ██    ███████
+    █████  ██████  ██████      ███    ███  ██████  ██████  ███████ ██
+    ██   ██ ██   ██ ██   ██     ████  ████ ██    ██ ██   ██ ██      ██
+    ███████ ██   ██ ██   ██     ██ ████ ██ ██    ██ ██   ██ █████   ██
+    ██   ██ ██   ██ ██   ██     ██  ██  ██ ██    ██ ██   ██ ██      ██
+    ██   ██ ██████  ██████      ██      ██  ██████  ██████  ███████ ███████
     */
 
-
-
-    if(do_chi2modelsys && do_model){
-      cout << "---------------------------------------" << endl;
-      for(unsigned int i=0; i<model_name.size(); i++){
-        vector<double> dummy_factor;
-        ModelFactor.push_back(dummy_factor);
-        for(unsigned int j=0; j<model_name[i].size(); j++){
-          cout << "Variation: " << model_name[i][j] << endl;
-          chi2sys chi2sysmodel = chi2sys(MODEL_OUTPUT[i][j], CovModelStat[i][j], model_truth[i][j]);
-          cout << "factor applied = " << chi2sysmodel.GetFactor() << endl;
-          ModelFactor[i].push_back(chi2sysmodel.GetFactor());
-          CovModel[i].push_back(chi2sysmodel.GetCov());
-          MODEL_DELTA[i].push_back(chi2sysmodel.GetDelta());
-          cout << endl;
-        }
+    if(do_model && do_newmtopuncert){
+      cout << "Fit bins for mtop uncertainty" << endl;
+      for(unsigned int i=0; i<MODEL_DELTA.size(); i++){
+        if(model_rel_name[i] != "mass") continue;
+        BinHists = GetBinHistsForMTop(MODEL_DELTA[i]);
       }
-      cout << "---------------------------------------" << endl;
+      vector<TF1*> BinHistsFits = FitBinHistsForMTop(BinHists);
+      DELTA_MT = GetDeltaFromBinHists(BinHistsFits, MODEL_DELTA[0][0], mtopuncert_min, mtopuncert_max);
+      COV_MT = CreateCovFromDelta(DELTA_MT, CovInputStat);
     }
-
-    /*
-    ██    ██ ███    ██ ███████  ██████  ██      ██████      ███████ ███    ███ ███████  █████  ██████
-    ██    ██ ████   ██ ██      ██    ██ ██      ██   ██     ██      ████  ████ ██      ██   ██ ██   ██
-    ██    ██ ██ ██  ██ █████   ██    ██ ██      ██   ██     ███████ ██ ████ ██ █████   ███████ ██████
-    ██    ██ ██  ██ ██ ██      ██    ██ ██      ██   ██          ██ ██  ██  ██ ██      ██   ██ ██   ██
-    ██████  ██   ████ ██       ██████  ███████ ██████      ███████ ██      ██ ███████ ██   ██ ██   ██
-    */
-
-
-
-    // Unfold 100 smeared Generator Distribution
-    // take mean in every bin as central value and rms as error
-    // for every following unfolding the same tau is used
-    if(do_genvar){
-      double t = 0;
-      for(unsigned int i=0; i<GeneratorVariations.size(); i++){
-        cout << "********************************************" << endl;
-        cout << " UNFOLDING OF SMEARED DISTRIBUTION NUMBER " << i << endl;
-        vector<TH1D*> background_dummy = backgrounds; // create empty vector of backgrounds for model uncertainties
-        for(auto b: background_dummy) b->Reset();
-        unfolding* unfold_genvar;
-        if(i==0) unfold_genvar = new unfolding(GeneratorVariations[i], background_dummy, bgr_name, hist_mc_sig, histMCGenRec, sys_matrix, sys_name, binning_rec, binning_gen, binning_gen20, do_lcurve, nscan, tau);
-        else     unfold_genvar = new unfolding(GeneratorVariations[i], background_dummy, bgr_name, hist_mc_sig, histMCGenRec, sys_matrix, sys_name, binning_rec, binning_gen, binning_gen20, do_lcurve, 0, t);
-        TH1* output = unfold_genvar->get_output(true);
-        Genvar_OUTPUT.push_back(output);
-        t = unfold_genvar->get_tau();
-        cout << "Log(tau) = " << TMath::Log10(t) << endl;
+    if(do_model && do_newfsruncert){
+      cout << "Fit bins for FSR uncertainty" << endl;
+      for(unsigned int i=0; i<MODEL_DELTA.size(); i++){
+        if(model_rel_name[i] != "FSR") continue;
+        BinHistsFSR = GetBinHistsForFSR(MODEL_DELTA[i], fsrpower);
       }
-      Smearing * smear = new Smearing(Genvar_OUTPUT);
-      Genvar_combination = smear->GetResult();
-      Genvar_fits = smear->GetFits();
-      Genvar_variations = smear->GetVariations();
+      vector<TF1*> BinHistsFSRFits = FitBinHistsForFSR(BinHistsFSR);
+      // IN GetDeltaFromBinHists Correlations have to be adjusted!!
+      DELTA_FSR = GetDeltaFromBinHistsFSR(BinHistsFSRFits, MODEL_DELTA[0][0], fsrcentral, fsruncert_min, fsruncert_max, fsrpower);
+      FSRSHIFT = GetFSRshift(BinHistsFSRFits, MODEL_DELTA[0][0], fsrcentral, fsrpower);
+      COV_FSR = CreateCovFromDelta(DELTA_FSR, CovInputStat);
+      outputFile->cd();
+      COV_FSR->Write("COV_FSR");
+      FSRSHIFT->Write("FSRSHIFT");
+      if(make_fsrshift && data) data_unfolded->Add(FSRSHIFT);
+      FSRSHIFT_REL = ConvertToRelative(FSRSHIFT, data_unfolded);
     }
-
-    // create a delta hist and cov for lumi uncertainty
-    double lumiuncert = 0.016; // Combination of all years
-    if(year == "2016")      lumiuncert = 0.012;
-    else if(year == "2017") lumiuncert = 0.023;
-    else if(year == "2018") lumiuncert = 0.025;
-    DeltaLumi = GetLumiDelta(data_unfolded, lumiuncert);
-    CovLumi = CreateCovFromDelta(DeltaLumi, CovInputStat);
 
 
     cout << "******************************************************" << endl;
     // add up stat Cov
-    cout << "sum up stat cov matrices" << endl;
+    cout << "sum up stat cov matrices and setup totals" << endl;
     CovStat = (TH2*) CovInputStat->Clone();
     STAT_DELTA = CreateDeltaFromCov(CovStat);
     STAT_REL = ConvertToRelative(STAT_DELTA, data_unfolded);
-    // then add sys cov from backgrounds
-    cout << "sum up background sys cov matrices" << endl;
     CovTotal = (TH2*) CovStat->Clone();
     CovM = (TH2*) CovStat->Clone();
     CovS = (TH2*) CovStat->Clone();
@@ -967,12 +956,77 @@ int main(int argc, char* argv[])
     CovMCStat->Reset();
     CovBKG->Reset();
 
+
+    if(!do_model) cout << "!!!! ATTENTION: MODEL UNCERTAINTIES SWITCHED OFF!!!!! " <<endl;
+    cout << "sum up model sys cov matrices" << endl;
+    // write in a file which variations are used
+    std::ofstream out(directory+"/SYS.txt");
+    auto coutbuf = std::cout.rdbuf(out.rdbuf());
+    for(unsigned int i=0; i<MODEL_DELTA.size(); i++){
+      // cout << "loop at i=" << i << ", size = " << MODEL_DELTA.size() << ", name = " << model_rel_name[i] << endl;
+      int j = FindLargestVariationByMean(model_truth[i], MODEL_OUTPUT[i], use_significance);
+      TH1* DELTA_AVERAGE = ConstructAverage(MODEL_DELTA[i], j);
+      MODEL_DELTA_AVERAGE.push_back(DELTA_AVERAGE);
+      TH2* COV_AVERAGE = CreateCovFromDelta(DELTA_AVERAGE, CovInputStat);
+      TH1* CHOSEN_DELTA;
+      TH2* CHOSEN_COV;
+      if(do_newmtopuncert && model_rel_name[i] == "mass"){
+        CHOSEN_COV = COV_MT;
+        CHOSEN_DELTA = DELTA_MT;
+        cout << "using interpolation for 'choice of mtop'" << endl;
+      }
+      else if(do_newfsruncert && model_rel_name[i] == "FSR"){
+        CHOSEN_COV = COV_FSR;
+        CHOSEN_DELTA = DELTA_FSR;
+        cout << "using interpolation for 'FSR'" << endl;
+      }
+      else{
+        if(do_average_uncert && do_average[i]){
+          CHOSEN_COV = COV_AVERAGE;
+          CHOSEN_DELTA = DELTA_AVERAGE;
+          cout << "using average for " << model_rel_name[i] << endl;
+        }
+        else{
+          CHOSEN_COV = CovModel[i][j];
+          CHOSEN_DELTA = MODEL_DELTA[i][j];
+          cout << "using " << model_name[i][j] << endl;
+        }
+      }
+      if(do_model){
+        ChosenModelCov.push_back(CHOSEN_COV);
+        CovTotal->Add(CHOSEN_COV);
+        CovM->Add(CHOSEN_COV);
+        CHOSEN_COV->Write("COV_"+model_rel_name[i]);
+      }
+      MODEL_rel.push_back(ConvertToRelative(CHOSEN_DELTA, data_unfolded));
+    }
+    if(do_model){
+      MODEL_rel.push_back(STAT_REL);            // put in stat to get total
+      MODEL_rel_total = AddSys(MODEL_rel);      // calculate total
+      MODEL_rel.pop_back();                     // remove stat from list
+    }
+
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+
+    // create a delta hist and cov for lumi uncertainty
+    double lumiuncert = 0.016; // Combination of all years
+    if(year == "2016")      lumiuncert = 0.012;
+    else if(year == "2017") lumiuncert = 0.023;
+    else if(year == "2018") lumiuncert = 0.025;
+    DeltaLumi = GetLumiDelta(data_unfolded, lumiuncert);
+    CovLumi = CreateCovFromDelta(DeltaLumi, CovInputStat);
+    CovLumi->Write("COV_Lumi");
+
+
     // add bkg stat
     for(auto bgrcov: CovBgrStat) CovMCStat->Add(bgrcov);
     for(auto bgrcov: CovBgrStat) CovTotal->Add(bgrcov);
     for(auto bgrcov: CovBgrStat) CovS->Add(bgrcov);
     // add matrix stat
     CovMCStat->Add(CovMatrixStat);
+    CovMCStat->Write("COV_MCstat"); // contains signal and bgr stat
     CovTotal->Add(CovMatrixStat);
     CovS->Add(CovMatrixStat);
     // create delta for MC stat
@@ -982,6 +1036,7 @@ int main(int argc, char* argv[])
     for(auto bgrcov: CovBgrScale) CovS->Add(bgrcov);
     for(auto bgrcov: CovBgrScale) CovTotal->Add(bgrcov);
     for(auto bgrcov: CovBgrScale) CovBKG->Add(bgrcov);
+    CovBKG->Write("COV_BGRrate");
     TH1* DELTA_BKG = CreateDeltaFromCov(CovBKG);
     TH1* DELTA_BKG_REL = ConvertToRelative(DELTA_BKG, data_unfolded);
 
@@ -990,9 +1045,6 @@ int main(int argc, char* argv[])
     CovTotal->Add(CovLumi);
 
 
-    // write in a file which variations are used
-    std::ofstream out(directory+"/SYS.txt");
-    auto coutbuf = std::cout.rdbuf(out.rdbuf());
 
     /*
     █████  ██████  ██████      ███████ ██   ██ ██████
@@ -1030,6 +1082,7 @@ int main(int argc, char* argv[])
       ChosenSysCov.push_back(CHOSEN_COV);
       CovTotal->Add(CHOSEN_COV);
       CovS->Add(CHOSEN_COV);
+      CHOSEN_COV->Write("COV_"+sys_rel_name[i]);
       SYS_rel.push_back(ConvertToRelative(CHOSEN_DELTA, data_unfolded));
     }
     // now also add MCstat, bkg rates, lumi
@@ -1044,12 +1097,14 @@ int main(int argc, char* argv[])
     CovSys.push_back({CovLumi});
     ChosenSysCov.push_back({CovMCStat});
     ChosenSysCov.push_back({CovBKG});
-    ChosenSysCov.push_back({CovLumi});    sys_rel_name.push_back("MCstat");
+    ChosenSysCov.push_back({CovLumi});
+    sys_rel_name.push_back("MCstat");
     sys_rel_name.push_back("Background");
     sys_rel_name.push_back("Luminosity");
     sys_name.push_back({"MCstat"});
     sys_name.push_back({"Background"});
     sys_name.push_back({"Luminosity"});
+
 
     // get one total delta
     SYS_rel.push_back(STAT_REL);         // put in stat to get total
@@ -1057,92 +1112,6 @@ int main(int argc, char* argv[])
     SYS_rel.pop_back();                  // remove stat from list
 
 
-
-    /*
-    █████  ██████  ██████      ███    ███  ██████  ██████  ███████ ██
-    ██   ██ ██   ██ ██   ██     ████  ████ ██    ██ ██   ██ ██      ██
-    ███████ ██   ██ ██   ██     ██ ████ ██ ██    ██ ██   ██ █████   ██
-    ██   ██ ██   ██ ██   ██     ██  ██  ██ ██    ██ ██   ██ ██      ██
-    ██   ██ ██████  ██████      ██      ██  ██████  ██████  ███████ ███████
-    */
-
-    if(do_model && do_newmtopuncert){
-      for(unsigned int i=0; i<MODEL_DELTA.size(); i++){
-        if(model_rel_name[i] != "mass") continue;
-        BinHists = GetBinHistsForMTop(MODEL_DELTA[i]);
-      }
-      vector<TF1*> BinHistsFits = FitBinHistsForMTop(BinHists);
-      DELTA_MT = GetDeltaFromBinHists(BinHistsFits, MODEL_DELTA[0][0], mtopuncert_min, mtopuncert_max);
-      COV_MT = CreateCovFromDelta(DELTA_MT, CovInputStat);
-    }
-    if(do_model && do_newfsruncert){
-      for(unsigned int i=0; i<MODEL_DELTA.size(); i++){
-        if(model_rel_name[i] != "FSR") continue;
-        BinHistsFSR = GetBinHistsForFSR(MODEL_DELTA[i], fsrpower);
-      }
-      vector<TF1*> BinHistsFSRFits = FitBinHistsForFSR(BinHistsFSR);
-      // IN GetDeltaFromBinHists Correlations have to be adjusted!!
-      DELTA_FSR = GetDeltaFromBinHistsFSR(BinHistsFSRFits, MODEL_DELTA[0][0], fsrcentral, fsruncert_min, fsruncert_max, fsrpower);
-      COV_FSR = CreateCovFromDelta(DELTA_FSR, CovInputStat);
-      outputFile->cd();
-      COV_FSR->Write("COV_FSR");
-    }
-
-    if(!do_model) cout << "!!!! ATTENTION: MODEL UNCERTAINTIES SWITCHED OFF!!!!! " <<endl;
-    cout << "sum up model sys cov matrices" << endl;
-    for(unsigned int i=0; i<MODEL_DELTA.size(); i++){
-      int j = FindLargestVariationByMean(model_truth[i], MODEL_OUTPUT[i], use_significance);
-      TH1* DELTA_AVERAGE = ConstructAverage(MODEL_DELTA[i], j);
-      MODEL_DELTA_AVERAGE.push_back(DELTA_AVERAGE);
-      TH2* COV_AVERAGE = CreateCovFromDelta(DELTA_AVERAGE, CovInputStat);
-      TH1* CHOSEN_DELTA;
-      TH2* CHOSEN_COV;
-      if(do_newmtopuncert && model_rel_name[i] == "mass"){
-        CHOSEN_COV = COV_MT;
-        CHOSEN_DELTA = DELTA_MT;
-        cout << "using interpolation for 'choice of mtop'" << endl;
-      }
-      else if(do_newfsruncert && model_rel_name[i] == "FSR"){
-        CHOSEN_COV = COV_FSR;
-        CHOSEN_DELTA = DELTA_FSR;
-        cout << "using interpolation for 'FSR'" << endl;
-      }
-      else{
-        if(do_average_uncert && do_average[i]){
-          CHOSEN_COV = COV_AVERAGE;
-          CHOSEN_DELTA = DELTA_AVERAGE;
-          cout << "using average for " << model_rel_name[i] << endl;
-        }
-        else{
-          CHOSEN_COV = CovModel[i][j];
-          CHOSEN_DELTA = MODEL_DELTA[i][j];
-          cout << "using " << model_name[i][j] << endl;
-        }
-      }
-      if(do_model){
-        ChosenModelCov.push_back(CHOSEN_COV);
-        CovTotal->Add(CHOSEN_COV);
-        CovM->Add(CHOSEN_COV);
-      }
-      MODEL_rel.push_back(ConvertToRelative(CHOSEN_DELTA, data_unfolded));
-    }
-    if(do_model){
-      MODEL_rel.push_back(STAT_REL);            // put in stat to get total
-      MODEL_rel_total = AddSys(MODEL_rel);      // calculate total
-      MODEL_rel.pop_back();                     // remove stat from list
-    }
-
-
-    // also store factors for model variations in txt file
-    if(do_model && do_chi2modelsys){
-      for(unsigned int i=0; i<model_name.size(); i++){
-        for(unsigned int j=0; j<model_name[i].size(); j++){
-          cout << "factor for " << model_name[i][j] << ": " << ModelFactor[i][j] << endl;
-        }
-      }
-    }
-    // close sys file again
-    std::cout.rdbuf(coutbuf);
 
 
     /*
@@ -1171,6 +1140,7 @@ int main(int argc, char* argv[])
       TH2* COV_temp = CreateCovFromDelta(delta_temp[index], CovInputStat);
       ChosenTheoCov.push_back(COV_temp);
       CovTheo->Add(COV_temp);
+      COV_temp->Write("COV_THEO_"+theo_rel_name[i]);
     }
     hist_mc_truth_error = (TH1D*) SetSysError(hist_mc_truth, CovTheo);
     std::cout.rdbuf(coutbuf);
@@ -1612,6 +1582,9 @@ int main(int argc, char* argv[])
   plot->draw_delta_rel(delta_tot, data_unfolded_sys, "DELTA_TOTAL_REL");
   plot->draw_delta(delta_tot_norm, "DELTA_TOTAL_NORM");
   plot->draw_delta(delta_tot, "DELTA_TOTAL");
+  plot->draw_delta(FSRSHIFT, "FSRSHIFT");
+  plot->draw_delta_rel(FSRSHIFT, data_unfolded_sys, "FSRSHIFT_REL");
+
 
   for(unsigned int i=0; i<sys_name.size(); i++){
     for(unsigned int j=0; j<sys_name[i].size(); j++){
@@ -1698,16 +1671,7 @@ int main(int argc, char* argv[])
     plot->draw_delta_rel(BGR_DELTA[i], data_unfolded_sys, "DELTA_"+bgr_name[i]+"_REL");
   }
 
-  if(do_genvar){
-    plot->draw_output(Genvar_combination, GeneratorTruth, false, "GENERATOR_SMEARING_COMBINATION");
-    if(data || pseudo) plot->draw_output_smear(Genvar_OUTPUT, GeneratorTruth, "GeneratorSmearing");
-    for(unsigned int i=0; i<Genvar_fits.size(); i++){
-      TString name = "SmearFit_Bin";
-      int bin = i+1;
-      name += bin;
-      plot->draw_smearFit(Genvar_variations[i], Genvar_fits[i], name);
-    }
-  }
+
   if(pseudo) plot->draw_output_pseudo(data_unfolded, h_pseudodata_truth, hist_mc_truth, false, "Unfold_pseudo");
   if(pseudo) plot->draw_output_pseudo(data_unfolded_norm, h_pseudodata_truth_norm, hist_mc_truth_norm, true, "Unfold_pseudo_norm");
   if(pseudo) plot->draw_bias(data_unfolded, h_pseudodata_truth, pseudodata_bias, "Unfold_pseudo_bias");
@@ -2194,28 +2158,48 @@ vector<TF1*> FitBinHistsForMTop(vector<TGraphErrors*> hists){
 vector<TGraphErrors*> GetBinHistsForFSR(vector<TH1*> hists, int power){
   vector<TGraphErrors*> binhists;
   int nbins = hists[0]->GetXaxis()->GetNbins();
-  vector<double> xvalues = {0.5, 2.0};
-  if(hists.size() == 4) xvalues = {0.25, 0.5, 2.0, 4.0};
-  if(hists.size() == 6) xvalues = {0.25, 0.5, 1.0/sqrt(2), sqrt(2), 2.0, 4.0};
+  vector<double> fvalues = {0.5, 2.0};
+  if(hists.size() == 4) fvalues = {0.25, 0.5, 2.0, 4.0};
+  if(hists.size() == 6) fvalues = {0.25, 0.5, 1.0/sqrt(2), sqrt(2), 2.0, 4.0};
   if(power != 1){
-    for(unsigned int i=0; i<xvalues.size();i++){
-      xvalues[i] = pow(xvalues[i],power);
+    for(unsigned int i=0; i<fvalues.size();i++){
+      fvalues[i] = pow(fvalues[i],power);
     }
   }
   for(unsigned int bin=1; bin<=nbins; bin++){
+    vector<double> xvalues;
     vector<double> contents;
     vector<double> x_errors, y_errors;
     for(unsigned int ihist=0; ihist<hists.size(); ihist++){
-      int newbin = ihist+1;
       double content = hists[ihist]->GetBinContent(bin);
-      // flip some correlations by hand
-      // if(bin == 1 && ihist == 0) content *= -1;
-      ////
       contents.push_back(content);
-      x_errors.push_back(xvalues[ihist]*0.1);
+      xvalues.push_back(fvalues[ihist]);
+      x_errors.push_back(fvalues[ihist]*0.1);
       y_errors.push_back(hists[ihist]->GetBinError(bin));
+      // Also add the point at fFSR=1
+      if(ihist+1 == hists.size()/2){
+        contents.push_back(0.0);
+        xvalues.push_back(1.0);
+        x_errors.push_back(0.1);
+        y_errors.push_back(hists[ihist]->GetBinError(bin));
+      }
     }
-    TGraphErrors * g = new TGraphErrors(xvalues.size(), &xvalues[0], &contents[0], &x_errors[0], &y_errors[0]);
+    int Npoints = xvalues.size();
+    // cout << "N = " << Npoints << endl;
+    // for(double x: xvalues){
+    //   cout << " x = " << x << endl;
+    // }
+    // for(double y: contents){
+    //   cout << " y = " << y << endl;
+    // }
+    // for(double ex: x_errors){
+    //   cout << " ex = " << ex << endl;
+    // }
+    // for(double ey: y_errors){
+    //   cout << " ey = " << ey << endl;
+    // }
+
+    TGraphErrors * g = new TGraphErrors(Npoints, &xvalues[0], &contents[0], &x_errors[0], &y_errors[0]);
     binhists.push_back(g);
   }
   return binhists;
@@ -2262,6 +2246,16 @@ TH1* GetDeltaFromBinHistsFSR(vector<TF1*> fits, TH1* dummy, double central, doub
   return delta;
 }
 
+TH1* GetFSRshift(vector<TF1*> fits, TH1* dummy, double central, int power){
+  TH1* shift = (TH1*) dummy->Clone();
+  shift->Reset();
+  for(unsigned int i=0; i<fits.size(); i++){
+    double c = fits[i]->Eval(pow(central,power));
+    c *= -1.0; // Flip sign: if FSR is too high (positive c), correct data down (negative c)
+    shift->SetBinContent(i+1, c);
+  }
+  return shift;
+}
 
 TH1* ConstructAverage(vector<TH1*> variations, int varfrom){
   if(variations.size() == 0) cout << "AVERGAE CAN NOT BE CONSTRUCTED" << endl;
